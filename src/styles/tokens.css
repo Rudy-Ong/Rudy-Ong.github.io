@@ -1,0 +1,63 @@
+/**
+ * Design tokens. Mirrors profile-readme/scripts/lib/palette.mjs so the README
+ * SVGs and this site read as one system — change both together.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f6f8fa;
+  --border: #d0d7de;
+  --text: #1f2328;
+  --text-muted: #59636e;
+  --accent: #0969da;
+  --accent-soft: #ddf4ff;
+  --purple: #8957e5;
+  --purple-soft: #f2e9ff;
+  --green: #1a7f37;
+  --danger: #cf222e;
+  --danger-soft: #ffebe9;
+  --success-soft: #dafbe1;
+
+  --lip: #c96678;
+  --lip-dark: #a34d5e;
+  --cavity: #3d1d24;
+  --teeth: #fbf7f4;
+  --tongue: #d4788a;
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 1px 2px rgb(31 35 40 / 6%), 0 6px 20px rgb(31 35 40 / 6%);
+  --maxw: 1080px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #9198a1;
+    --accent: #4493f8;
+    --accent-soft: #121d2f;
+    --purple: #a371f7;
+    --purple-soft: #1d1b2e;
+    --green: #3fb950;
+    --danger: #f85149;
+    --danger-soft: #2b1618;
+    --success-soft: #12261e;
+
+    --lip: #b8586a;
+    --lip-dark: #8f4152;
+    --cavity: #2a1218;
+    --teeth: #f0eae6;
+    --tongue: #c26a7c;
+
+    --shadow: 0 1px 2px rgb(1 4 9 / 40%), 0 8px 24px rgb(1 4 9 / 40%);
+  }
+}

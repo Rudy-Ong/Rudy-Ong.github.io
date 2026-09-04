@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rudy Ong — lip reading, multimodal ML</title>
+    <meta
+      name="description"
+      content="Interactive lip-reading lab by Rudy Ong: guess words from a silent mouth, explore Japanese visemes, and see why audio-visual speech recognition beats audio alone in noise."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🫦</text></svg>" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Rudy Ong — lip reading, multimodal ML" />
+    <meta
+      property="og:description"
+      content="Guess words from a silent mouth, explore Japanese visemes, and see why audio-visual speech recognition beats audio alone in noise."
+    />
+    <meta property="og:url" content="https://rudy-ong.github.io/" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <a class="skip-link" href="#lab">Skip to the lip-reading lab</a>
+
+    <header class="wrap hero">
+      <h1>Rudy Ong</h1>
+      <p class="tagline">
+        Student and researcher in Japan, working on multimodal machine learning — audio-visual speech
+        recognition and lip reading.
+      </p>
+      <p class="sub">
+        I am interested in what happens when one channel fails: how much noise the audio has to take
+        before watching someone's mouth becomes the better bet.
+      </p>
+      <nav class="hero-links" aria-label="Profile links">
+        <a class="btn" href="https://github.com/Rudy-Ong">GitHub</a>
+        <a class="btn" href="https://www.linkedin.com/in/rudyong/">LinkedIn</a>
+        <a class="btn" href="mailto:rudy.ong.95@gmail.com">Email</a>
+      </nav>
+    </header>
+
+    <main id="main" class="wrap">
+      <section class="lab section" id="lab" aria-labelledby="lab-title">
+        <h2 id="lab-title">Read my lips ・ くちびるを読む</h2>
+        <p class="lead">
+          Everything below runs on a mouth built from six numbers — aperture, lip spread, rounding,
+          jaw, teeth and tongue. No audio, by design.
+        </p>
+
+        <div class="lab-shell">
+          <div class="tabs" id="lab-tabs" role="tablist" aria-label="Lip-reading lab modes"></div>
+          <div class="lab-panel" id="lab-panel" role="tabpanel" tabindex="0"></div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="work-title">
+        <h2 id="work-title">Work</h2>
+        <p class="lead">Two repositories, two halves of the same interest.</p>
+
+        <div class="bento">
+          <article class="card" data-reveal>
+            <span class="meta">JavaScript</span>
+            <h3><a href="https://github.com/Rudy-Ong/Flash_Card_App">Flash_Card_App</a></h3>
+            <p>
+              A spaced-repetition flashcard app — the practical counterpart to the language-learning
+              side of the research.
+            </p>
+            <div class="pill-row">
+              <span class="pill">JavaScript</span><span class="pill">Spaced repetition</span>
+            </div>
+          </article>
+
+          <article class="card" data-reveal>
+            <span class="meta">Python</span>
+            <h3>
+              <a href="https://github.com/Rudy-Ong/usr2_avsr_lip_reading">usr2_avsr_lip_reading</a>
+            </h3>
+            <p>
+              Built on <a href="https://github.com/ahaliassos/usr2">ahaliassos/usr2</a>. Comparing
+              audio-only, video-only and audio-visual input on the same downstream ASR task.
+            </p>
+            <div class="pill-row">
+              <span class="pill">PyTorch</span><span class="pill">AVSR</span><span class="pill">Lip reading</span>
+            </div>
+          </article>
+
+          <article class="card wide" data-reveal>
+            <h3>The three input conditions</h3>
+            <table class="table-compare">
+              <thead>
+                <tr><th scope="col">Input</th><th scope="col">What the model gets</th><th scope="col">Where it wins</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><strong>Audio only</strong></td><td>Waveform, no video</td><td>Clean conditions, low latency</td></tr>
+                <tr><td><strong>Video only</strong></td><td>Lips moving, no sound</td><td>Loud rooms, privacy, damaged audio</td></tr>
+                <tr><td><strong>Audio-visual</strong></td><td>Both, fused</td><td>Degraded audio — vision fills the gaps</td></tr>
+              </tbody>
+            </table>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="about-title">
+        <h2 id="about-title">About</h2>
+        <div class="bento">
+          <article class="card" data-reveal>
+            <h3>What I am working on</h3>
+            <p>
+              Multimodal speech recognition: where the visual stream stops being a nice extra and
+              starts being the thing carrying the sentence.
+            </p>
+          </article>
+
+          <article class="card" data-reveal>
+            <h3>Toolbox</h3>
+            <div class="pill-row">
+              <span class="pill">Python</span><span class="pill">PyTorch</span><span class="pill">JavaScript</span>
+              <span class="pill">TypeScript</span><span class="pill">Node</span><span class="pill">GitHub Actions</span>
+            </div>
+          </article>
+
+          <article class="card" data-reveal>
+            <h3>Elsewhere</h3>
+            <ul>
+              <li><a href="https://github.com/Rudy-Ong">github.com/Rudy-Ong</a></li>
+              <li><a href="https://www.linkedin.com/in/rudyong/">LinkedIn</a></li>
+              <li><a href="mailto:rudy.ong.95@gmail.com">rudy.ong.95@gmail.com</a></li>
+            </ul>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="wrap">
+      <div class="foot-row">
+        <span>© <span id="year">2026</span> Rudy Ong</span>
+        <span>Built by hand — no framework, no tracking.</span>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
