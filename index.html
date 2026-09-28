@@ -3,62 +3,171 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Rudy Ong — lip reading, multimodal ML</title>
+    <title>Rudy Ong — Japanese speech, vowel devoicing</title>
     <meta
       name="description"
-      content="Interactive lip-reading lab by Rudy Ong: guess words from a silent mouth, explore Japanese visemes, and see why audio-visual speech recognition beats audio alone in noise."
+      content="Rudy Ong — Japanese speech processing. A live vowel-devoicing detector for Japanese speech, plus an interactive look at what devoicing does to articulation and what it leaves behind."
     />
     <meta name="color-scheme" content="light dark" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🫦</text></svg>" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔊</text></svg>" />
 
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Rudy Ong — lip reading, multimodal ML" />
+    <meta property="og:title" content="Rudy Ong — Japanese speech, vowel devoicing" />
     <meta
       property="og:description"
-      content="Guess words from a silent mouth, explore Japanese visemes, and see why audio-visual speech recognition beats audio alone in noise."
+      content="A live vowel-devoicing detector for Japanese speech, plus an interactive look at what devoicing does to articulation."
     />
     <meta property="og:url" content="https://rudy-ong.github.io/" />
     <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
-    <a class="skip-link" href="#lab">Skip to the lip-reading lab</a>
+    <a class="skip-link" href="#detector">Skip to the devoicing detector</a>
 
     <header class="wrap hero">
       <h1>Rudy Ong</h1>
       <p class="tagline">
-        Student and researcher in Japan, working on multimodal machine learning — audio-visual speech
-        recognition and lip reading.
+        Student and researcher in Japan, working on Japanese speech processing — phone-level ASR,
+        vowel devoicing, and computer-assisted pronunciation training.
       </p>
       <p class="sub">
-        I am interested in what happens when one channel fails: how much noise the audio has to take
-        before watching someone's mouth becomes the better bet.
+        Japanese high vowels have a habit of going quiet. In 好き <em>suki</em> the /u/ sits between
+        two voiceless consonants and loses its voicing; in です <em>desu</em> the final /u/ does the
+        same. Native speakers do it without noticing. Learners often don't — and a recogniser has to
+        account for a vowel that left almost no acoustic trace behind.
       </p>
       <nav class="hero-links" aria-label="Profile links">
         <a class="btn" href="https://github.com/Rudy-Ong">GitHub</a>
+        <a class="btn" href="https://huggingface.co/Rudy-Ong">Hugging Face</a>
         <a class="btn" href="https://www.linkedin.com/in/rudyong/">LinkedIn</a>
         <a class="btn" href="mailto:rudy.ong.95@gmail.com">Email</a>
       </nav>
     </header>
 
     <main id="main" class="wrap">
-      <section class="lab section" id="lab" aria-labelledby="lab-title">
-        <h2 id="lab-title">Read my lips ・ くちびるを読む</h2>
+      <section class="section" id="detector" aria-labelledby="detector-title">
+        <h2 id="detector-title">Vowel devoicing, detected from audio</h2>
         <p class="lead">
-          Everything below runs on a mouth built from six numbers — aperture, lip spread, rounding,
-          jaw, teeth and tongue. No audio, by design.
+          Record or upload Japanese speech and the model marks, phone by phone, where devoicing
+          actually happened. Devoiced high vowels are upper-cased in the training transcript
+          (<code>s U k i</code>), so recognition and detection happen in one pass rather than two.
+          The demo brackets them in its output — <code>sh [I] t e</code>.
+        </p>
+
+        <div class="embed-wrap">
+          <p class="embed-loading" id="embed-loading">
+            Waking the model on Hugging Face — a sleeping Space takes a few seconds to start.
+          </p>
+          <!-- Not lazy-loaded: this is the primary content of the page, so it should
+               start fetching immediately rather than waiting on the viewport. -->
+          <iframe
+            id="hf-embed"
+            class="embed-frame"
+            src="https://rudy-ong-ja-vowel-devoicing-detection.hf.space"
+            title="Japanese Phone ASR — Vowel Devoicing, running on Hugging Face Spaces"
+            allow="microphone; clipboard-write"
+          ></iframe>
+        </div>
+        <p class="embed-fallback">
+          Not loading? Spaces sleep when idle and take a moment to wake. Open it directly at
+          <a href="https://huggingface.co/spaces/Rudy-Ong/ja_vowel_devoicing_detection"
+            >huggingface.co/spaces/Rudy-Ong/ja_vowel_devoicing_detection</a
+          >.
+        </p>
+      </section>
+
+      <section class="lab section" id="lab" aria-labelledby="lab-title">
+        <h2 id="lab-title">What devoicing looks like ・ 無声化</h2>
+        <p class="lead">
+          Devoicing is invisible. The tongue, jaw and lips do exactly what they would for a voiced
+          vowel — only the vocal folds stop. These two demos show that gap from both sides: a mouth
+          built from six articulatory parameters, and what is left to read when the sound is gone.
         </p>
 
         <div class="lab-shell">
-          <div class="tabs" id="lab-tabs" role="tablist" aria-label="Lip-reading lab modes"></div>
+          <div class="tabs" id="lab-tabs" role="tablist" aria-label="Articulation demos"></div>
           <div class="lab-panel" id="lab-panel" role="tabpanel" tabindex="0"></div>
         </div>
+
+        <table class="table-compare" style="margin-top: 20px">
+          <caption class="lead" style="text-align: left; margin-bottom: 8px">
+            Where Japanese high vowels devoice
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Context</th>
+              <th scope="col">Example</th>
+              <th scope="col">Typically</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>/i/ or /u/ between two voiceless consonants</td>
+              <td>好き <em>suki</em>, した <em>shita</em></td>
+              <td>devoiced</td>
+            </tr>
+            <tr>
+              <td>High vowel word-final after a voiceless consonant</td>
+              <td>です <em>desu</em>, ます <em>masu</em></td>
+              <td>devoiced</td>
+            </tr>
+            <tr>
+              <td>Vowel carrying the pitch accent</td>
+              <td>varies</td>
+              <td>more likely to keep voicing</td>
+            </tr>
+            <tr>
+              <td>Kansai and western dialects</td>
+              <td>—</td>
+              <td>devoice far less than Tokyo speech</td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       <section class="section" aria-labelledby="work-title">
         <h2 id="work-title">Work</h2>
-        <p class="lead">Two repositories, two halves of the same interest.</p>
+        <p class="lead">Code, model, and the language-learning side it feeds into.</p>
 
         <div class="bento">
+          <article class="card wide" data-reveal>
+            <span class="meta">Python</span>
+            <h3>
+              <a href="https://github.com/Rudy-Ong/ASR_JA_Vowel_Devoicing">ASR_JA_Vowel_Devoicing</a>
+            </h3>
+            <p>
+              Conformer encoder / Transformer decoder seq2seq, trained on JSUT basic5000 with
+              <code>phone_level3</code> transcripts. Training, inference, evaluation and a Gradio demo.
+            </p>
+            <p>
+              Best configuration reaches <strong>2.65% PER</strong> with
+              <strong>92.6% devoicing F1</strong> on the held-out split. The interesting part is the
+              trade-off: weighting the devoicing loss more heavily pushes recall to 95.0% and
+              detection accuracy to 96.2%, but costs precision and overall phone error rate.
+              <a href="https://github.com/Rudy-Ong/ASR_JA_Vowel_Devoicing/blob/main/results.md"
+                >Full results →</a
+              >
+            </p>
+            <div class="pill-row">
+              <span class="pill">PyTorch</span><span class="pill">Conformer</span>
+              <span class="pill">JSUT</span><span class="pill">Phone-level ASR</span>
+            </div>
+          </article>
+
+          <article class="card" data-reveal>
+            <span class="meta">Model</span>
+            <h3>
+              <a href="https://huggingface.co/Rudy-Ong/ja_devoicing_vowel_phone3_r3"
+                >ja_devoicing_vowel_phone3_r3</a
+              >
+            </h3>
+            <p>
+              The trained checkpoint behind the detector above, running live on Hugging Face Spaces.
+            </p>
+            <div class="pill-row">
+              <span class="pill">Hugging Face</span><span class="pill">Gradio</span>
+            </div>
+          </article>
+
           <article class="card" data-reveal>
             <span class="meta">JavaScript</span>
             <h3><a href="https://github.com/Rudy-Ong/Flash_Card_App">Flash_Card_App</a></h3>
@@ -70,34 +179,6 @@
               <span class="pill">JavaScript</span><span class="pill">Spaced repetition</span>
             </div>
           </article>
-
-          <article class="card" data-reveal>
-            <span class="meta">Python</span>
-            <h3>
-              <a href="https://github.com/Rudy-Ong/usr2_avsr_lip_reading">usr2_avsr_lip_reading</a>
-            </h3>
-            <p>
-              Built on <a href="https://github.com/ahaliassos/usr2">ahaliassos/usr2</a>. Comparing
-              audio-only, video-only and audio-visual input on the same downstream ASR task.
-            </p>
-            <div class="pill-row">
-              <span class="pill">PyTorch</span><span class="pill">AVSR</span><span class="pill">Lip reading</span>
-            </div>
-          </article>
-
-          <article class="card wide" data-reveal>
-            <h3>The three input conditions</h3>
-            <table class="table-compare">
-              <thead>
-                <tr><th scope="col">Input</th><th scope="col">What the model gets</th><th scope="col">Where it wins</th></tr>
-              </thead>
-              <tbody>
-                <tr><td><strong>Audio only</strong></td><td>Waveform, no video</td><td>Clean conditions, low latency</td></tr>
-                <tr><td><strong>Video only</strong></td><td>Lips moving, no sound</td><td>Loud rooms, privacy, damaged audio</td></tr>
-                <tr><td><strong>Audio-visual</strong></td><td>Both, fused</td><td>Degraded audio — vision fills the gaps</td></tr>
-              </tbody>
-            </table>
-          </article>
         </div>
       </section>
 
@@ -107,16 +188,19 @@
           <article class="card" data-reveal>
             <h3>What I am working on</h3>
             <p>
-              Multimodal speech recognition: where the visual stream stops being a nice extra and
-              starts being the thing carrying the sentence.
+              Phone-level ASR for Japanese, and what it takes to make a recogniser agree with a
+              phonetician about a vowel that is barely there. The pronunciation-training angle
+              follows from the same question — you cannot give a learner feedback on devoicing you
+              cannot reliably detect.
             </p>
           </article>
 
           <article class="card" data-reveal>
             <h3>Toolbox</h3>
             <div class="pill-row">
-              <span class="pill">Python</span><span class="pill">PyTorch</span><span class="pill">JavaScript</span>
-              <span class="pill">TypeScript</span><span class="pill">Node</span><span class="pill">GitHub Actions</span>
+              <span class="pill">Python</span><span class="pill">PyTorch</span>
+              <span class="pill">Gradio</span><span class="pill">JavaScript</span>
+              <span class="pill">TypeScript</span><span class="pill">GitHub Actions</span>
             </div>
           </article>
 
@@ -124,6 +208,7 @@
             <h3>Elsewhere</h3>
             <ul>
               <li><a href="https://github.com/Rudy-Ong">github.com/Rudy-Ong</a></li>
+              <li><a href="https://huggingface.co/Rudy-Ong">huggingface.co/Rudy-Ong</a></li>
               <li><a href="https://www.linkedin.com/in/rudyong/">LinkedIn</a></li>
               <li><a href="mailto:rudy.ong.95@gmail.com">rudy.ong.95@gmail.com</a></li>
             </ul>

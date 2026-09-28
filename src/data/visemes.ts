@@ -42,10 +42,11 @@ export const VOWELS: Record<string, MouthShape> = {
 /**
  * Viseme classes: groups of sounds that look the same on the lips.
  *
- * This grouping is the entire reason lip reading is hard, and the reason an
- * audio-visual model beats a video-only one. /m/, /b/ and /p/ are a single
- * visual event — the lips close and reopen — and no amount of video resolution
- * separates them. The game leans on this deliberately.
+ * This grouping is why the mouth alone underdetermines speech. /m/, /b/ and
+ * /p/ are a single visual event — the lips close and reopen — and no amount of
+ * video resolution separates them. It matters here because devoicing is the
+ * same problem from the other side: the articulation is visible, the voicing
+ * is not.
  */
 export type VisemeClass = 'bilabial' | 'labiodental' | 'alveolar' | 'velar' | 'palatal' | 'open';
 
@@ -156,4 +157,23 @@ export function lerpShape(a: MouthShape, b: MouthShape, t: number): MouthShape {
     teeth: a.teeth + (b.teeth - a.teeth) * k,
     tongue: a.tongue + (b.tongue - a.tongue) * k,
   };
+}
+
+/**
+ * Onsets made without vocal-fold vibration.
+ *
+ * Japanese high vowels devoice between two voiceless consonants, so this set
+ * is what makes a mora a devoicing candidate in the first place.
+ */
+const VOICELESS_ONSETS = new Set(['k', 's', 't', 'h', 'f', 'p']);
+
+/**
+ * Whether this mora is a realistic devoicing environment.
+ *
+ * Only /i/ and /u/ devoice, and only after a voiceless consonant. This is the
+ * mora-level half of the condition — full devoicing also needs a voiceless
+ * consonant (or a pause) on the other side, which a single mora cannot show.
+ */
+export function isDevoicingCandidate(m: Mora): boolean {
+  return (m.vowel === 'i' || m.vowel === 'u') && VOICELESS_ONSETS.has(m.onset);
 }

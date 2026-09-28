@@ -3,7 +3,6 @@ import './styles/main.css';
 
 import { createExplore } from './modes/explore';
 import { createPlay } from './modes/play';
-import { createFusion } from './modes/fusion';
 
 interface Mode {
   id: string;
@@ -13,9 +12,8 @@ interface Mode {
 }
 
 const MODES: Mode[] = [
-  { id: 'play', label: 'Play', hint: 'Guess the word from the lips alone', create: createPlay },
-  { id: 'explore', label: 'Explore', hint: 'See how each sound reshapes the mouth', create: createExplore },
-  { id: 'fusion', label: 'Fusion', hint: 'Why audio-visual beats either stream alone', create: createFusion },
+  { id: 'explore', label: 'Articulation', hint: 'How each sound shapes the mouth — voiced or not', create: createExplore },
+  { id: 'play', label: 'Read the mouth', hint: 'How much survives when the sound is gone', create: createPlay },
 ];
 
 function mountLab(): void {
@@ -108,6 +106,17 @@ function mountReveals(): void {
   });
 }
 
+/** Hide the placeholder once the embedded Space has actually rendered. */
+function mountEmbed(): void {
+  const frame = document.querySelector<HTMLIFrameElement>('#hf-embed');
+  const loading = document.querySelector<HTMLElement>('#embed-loading');
+  if (!frame) return;
+  frame.addEventListener('load', () => {
+    frame.classList.add('is-loaded');
+    if (loading) loading.hidden = true;
+  });
+}
+
 function mountYear(): void {
   const el = document.querySelector('#year');
   if (el) el.textContent = String(new Date().getFullYear());
@@ -115,4 +124,5 @@ function mountYear(): void {
 
 mountLab();
 mountReveals();
+mountEmbed();
 mountYear();

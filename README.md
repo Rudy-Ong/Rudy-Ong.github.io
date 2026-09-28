@@ -1,28 +1,36 @@
 # rudy-ong.github.io
 
-Source for [rudy-ong.github.io](https://rudy-ong.github.io) — an interactive lip-reading
-lab and portfolio.
+Source for [rudy-ong.github.io](https://rudy-ong.github.io) — Japanese vowel devoicing:
+a live detector, and an interactive look at why it is hard to see.
 
-## The lab
+## The detector
 
-Three modes, all driven by one mouth model built from six articulatory parameters
-(aperture, lip spread, rounding, jaw, teeth, tongue). Shapes are *computed* from those
-numbers rather than tweened between hand-drawn paths, so any blend of two shapes is a valid
-mouth — that is what makes smooth articulation possible without an animation library.
+The page embeds
+[Japanese Phone ASR — Vowel Devoicing](https://huggingface.co/spaces/Rudy-Ong/ja_vowel_devoicing_detection),
+running the [`ja_devoicing_vowel_phone3_r3`](https://huggingface.co/Rudy-Ong/ja_devoicing_vowel_phone3_r3)
+checkpoint on Hugging Face Spaces. Record or upload Japanese speech and the model marks,
+phone by phone, where devoicing occurred. Training code lives in
+[ASR_JA_Vowel_Devoicing](https://github.com/Rudy-Ong/ASR_JA_Vowel_Devoicing).
 
-- **Play** — the mouth silently says a word; you pick which one. Every round's four options
-  share an identical vowel sequence, so the vowels give nothing away and the answer rests
-  entirely on consonant visemes. Some of those are genuinely indistinguishable: /m/, /b/
-  and /p/ are one visual event. That is the point being demonstrated, not a flaw in the
-  puzzle.
-- **Explore** — pick any mora and see which parameters produce it, plus which other sounds
-  share the same visual shape.
-- **Fusion** — drag the noise level and watch the audio-only curve collapse while the
-  video-only curve sits flat. Where they cross is the argument for audio-visual fusion.
+The iframe is deliberately **not** lazy-loaded — it is the primary content — and a
+placeholder shows until the Space reports `load`, because a sleeping Space takes a few
+seconds to wake.
 
-The fusion curves are an **illustrative model, not measured results**. They reproduce the
-qualitative behaviour reported across the AVSR literature; they are not benchmark numbers
-from any particular system, and the UI says so.
+## The articulation demos
+
+Two modes, both driven by one mouth built from six articulatory parameters (aperture, lip
+spread, rounding, jaw, teeth, tongue). Shapes are *computed* from those numbers rather than
+tweened between hand-drawn paths, so any blend of two shapes is a valid mouth.
+
+- **Articulation** — pick a mora and toggle voicing. This is the point of the whole section:
+  switching a devoicing candidate to devoiced leaves every articulatory parameter
+  identical and only flattens the glottis trace. Devoicing cannot be seen, which is why it
+  has to be recovered from the signal. Morae that genuinely devoice in Japanese — /i/ and
+  /u/ after a voiceless consonant — are marked with a dot.
+- **Read the mouth** — a word is articulated silently and you pick which one it was. Each
+  round's four options share an identical vowel sequence, so the answer rests entirely on
+  consonant visemes, some of which are indistinguishable. It shows how much articulation
+  alone underdetermines speech.
 
 ## Develop
 
@@ -31,20 +39,20 @@ npm install
 npm run dev        # local dev server
 npm run build      # tsc --noEmit && vite build
 npm run preview    # serve the production build
-node scripts/shoot.mjs   # screenshot every mode in light and dark (needs Chrome or Edge)
+npm run shoot      # screenshot both modes in light and dark (needs Chrome or Edge)
 ```
 
 ## Deploy
 
 Pushing to `main` builds and publishes via
-[.github/workflows/deploy.yml](.github/workflows/deploy.yml). Enable it once under
-**Settings → Pages → Source → GitHub Actions**.
+[.github/workflows/deploy.yml](.github/workflows/deploy.yml). Pages source is set to
+**GitHub Actions**.
 
 ## Notes
 
-- No framework and no tracking. ~8 kB of gzipped JavaScript.
+- No framework and no tracking. ~7 kB of gzipped JavaScript.
 - Light and dark follow the visitor's system setting; tokens live in
   [`src/styles/tokens.css`](src/styles/tokens.css) and mirror the palette used by the
   profile README's generated SVGs — change both together.
-- Every mode is keyboard operable, and `prefers-reduced-motion` steps through articulation
+- Keyboard operable throughout, and `prefers-reduced-motion` steps through articulation
   discretely instead of animating.

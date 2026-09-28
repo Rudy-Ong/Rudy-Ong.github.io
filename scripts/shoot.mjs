@@ -63,9 +63,9 @@ async function main() {
       await page.screenshot({ path: join(OUT, `site-${scheme}-top.png`) });
 
       // Each mode in turn.
-      for (const mode of ['play', 'explore', 'fusion']) {
+      for (const mode of ['explore', 'play']) {
         await page.click(`#tab-${mode}`);
-        await wait(mode === 'play' ? 1400 : 500);
+        await wait(mode === 'play' ? 1400 : 700);
         const panel = await page.$('.lab-shell');
         await panel.screenshot({ path: join(OUT, `mode-${mode}-${scheme}.png`) });
       }

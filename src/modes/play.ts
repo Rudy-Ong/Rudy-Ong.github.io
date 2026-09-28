@@ -1,10 +1,12 @@
 /**
- * Play mode: the mouth says a word silently; you guess which one.
+ * "Read the mouth": the mouth says a word silently; you guess which one.
  *
  * The four options in every round share an identical vowel sequence, so the
- * vowels — the most visible part — give nothing away and the answer rests
- * entirely on consonant visemes. Some of those are genuinely indistinguishable,
- * which is the point being made rather than a flaw in the puzzle.
+ * vowels give nothing away and the answer rests entirely on consonant visemes.
+ * Some of those are genuinely indistinguishable, which is the point rather than
+ * a flaw in the puzzle: articulation underdetermines speech. Devoicing is the
+ * same gap seen from the other direction — the gesture is there, the voicing
+ * that would disambiguate it is not.
  */
 
 import { createArticulator } from '../articulate';
@@ -103,7 +105,7 @@ export function createPlay(): { el: HTMLElement; deactivate(): void } {
 
   const prompt = document.createElement('p');
   prompt.className = 'panel-note';
-  prompt.textContent = 'Watch the mouth, then pick the word it said.';
+  prompt.textContent = 'No sound. Watch the mouth, then pick the word it said.';
 
   const options = document.createElement('div');
   options.className = 'options';

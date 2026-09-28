@@ -127,34 +127,37 @@ a:hover { text-decoration-thickness: 2px; }
 .feedback.is-wrong { color: var(--text); }
 .controls { display: flex; gap: 8px; }
 
-/* ---------- Fusion ---------- */
-.chart { width: 100%; height: auto; display: block; }
-.grid-line { stroke: var(--border); stroke-width: 1; }
-.axis-label { fill: var(--text-muted); font-size: 10px; font-family: var(--font); }
-.axis-title { fill: var(--text-muted); font-size: 11px; font-family: var(--font); }
-.line { stroke-width: 2.5; stroke-linecap: round; }
-.line-audio { stroke: var(--accent); }
-.line-video { stroke: var(--purple); }
-.line-fusion { stroke: var(--green); stroke-width: 3; }
-.marker { stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 4 4; }
-.dot-audio { fill: var(--accent); }
-.dot-video { fill: var(--purple); }
-.dot-fusion { fill: var(--green); }
+/* ---------- Voicing / glottis ---------- */
+.stage-stack { display: flex; flex-direction: column; gap: 6px; }
+.glottis { width: 100%; height: auto; max-height: 46px; display: block; }
+.glottis-line { fill: none; stroke: var(--purple); stroke-width: 2.5; stroke-linecap: round; transition: stroke 0.2s ease; }
+.glottis.is-voiceless .glottis-line { stroke: var(--text-muted); stroke-dasharray: 5 5; }
 
-.slider-row { display: flex; align-items: center; gap: 12px; margin: 14px 0 18px; flex-wrap: wrap; }
-.slider-row label { font-size: 0.9rem; font-weight: 500; }
-.slider-row input[type='range'] { flex: 1; min-width: 180px; accent-color: var(--accent); }
-.slider-row output { font-variant-numeric: tabular-nums; font-size: 0.88rem; color: var(--text-muted); min-width: 12ch; }
+.voicing-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.toggle[aria-pressed='true'] { background: var(--text-muted); border-color: var(--text-muted); color: #fff; }
+.voicing-hint { font-size: 0.82rem; color: var(--text-muted); max-width: 40ch; }
+.tag-devoice { background: var(--accent-soft); color: var(--accent); }
+.kana-btn.is-candidate { position: relative; }
+.kana-btn.is-candidate::after {
+  content: ''; position: absolute; top: 4px; right: 4px;
+  width: 5px; height: 5px; border-radius: 50%; background: var(--accent);
+}
+.kana-btn[aria-pressed='true'].is-candidate::after { background: #fff; }
 
-.channels { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-.channel { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 13px 15px; background: var(--surface-2); border-top: 3px solid var(--border); }
-.channel-audio { border-top-color: var(--accent); }
-.channel-video { border-top-color: var(--purple); }
-.channel-fusion { border-top-color: var(--green); }
-.channel h4 { margin: 0 0 2px; font-size: 0.9rem; }
-.channel-value { font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
-.channel p { margin: 4px 0 0; font-size: 0.82rem; color: var(--text-muted); }
-.caveat { font-size: 0.79rem; color: var(--text-muted); margin: 16px 0 0; font-style: italic; max-width: 74ch; }
+/* ---------- Embedded Space ---------- */
+.embed-wrap { position: relative; }
+.embed-loading {
+  position: absolute; inset: 0; margin: 0; display: grid; place-items: center;
+  text-align: center; padding: 0 24px; color: var(--text-muted); font-size: 0.9rem;
+}
+.embed-frame {
+  position: relative; width: 100%; min-height: 880px; border: 1px solid var(--border);
+  border-radius: var(--radius); background: transparent; display: block;
+}
+/* Opaque only once the Space has actually rendered, so the loading note shows through. */
+.embed-frame.is-loaded { background: var(--surface); }
+@media (max-width: 760px) { .embed-frame { min-height: 560px; } }
+.embed-fallback { font-size: 0.86rem; color: var(--text-muted); margin: 10px 0 0; }
 
 /* ---------- Bento ---------- */
 .section { margin: 0 0 56px; }
