@@ -7,8 +7,7 @@ a live detector, and an interactive look at why it is hard to see.
 
 The page embeds
 [Japanese Phone ASR — Vowel Devoicing](https://huggingface.co/spaces/Rudy-Ong/jp-vowel_devoicing),
-running the [`ja_devoicing_vowel_phone3_r3`](https://huggingface.co/Rudy-Ong/ja_devoicing_vowel_phone3_r3)
-checkpoint on Hugging Face Spaces. Record or upload Japanese speech and the model marks,
+running an Audio-LM + LoRA model on Hugging Face Spaces. Record or upload Japanese speech and the model marks,
 phone by phone, where devoicing occurred. Training code lives in
 [ASR_JA_Vowel_Devoicing](https://github.com/Rudy-Ong/ASR_JA_Vowel_Devoicing).
 

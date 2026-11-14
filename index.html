@@ -126,9 +126,35 @@
 
       <section class="section" aria-labelledby="work-title">
         <h2 id="work-title">Work</h2>
-        <p class="lead">Code, model, and the language-learning side it feeds into.</p>
+        <p class="lead">Code, a live audio-LLM demo, and the language-learning side it feeds into.</p>
 
         <div class="bento">
+          <article class="card wide" data-reveal>
+            <span class="meta">Hugging Face Space</span>
+            <h3>
+              <a href="https://huggingface.co/spaces/Rudy-Ong/jp-vowel_devoicing"
+                >jp-vowel_devoicing</a
+              >
+            </h3>
+            <p>
+              Can an Audio-LM <em>hear</em> Japanese vowel devoicing? This Space runs an Audio-LM
+              with a LoRA adapter fine-tuned to write phone-level transcripts in which devoiced
+              <code>i</code> / <code>u</code> come out upper-case. It runs on
+              ZeroGPU, so the first request may wait for a GPU.
+            </p>
+            <p>
+              It comes from a study of Audio-LMs on CSJ Core against manual devoicing labels. The
+              adapter reaches <strong>3.86% PER</strong> and <strong>91.0% devoicing F1</strong>,
+              and, once text context is matched, still writes devoiced vowels 47.6 points more often
+              where the speaker devoiced than where they did not. Zero-shot models and a
+              Whisper → LLM cascade show no such effect.
+            </p>
+            <div class="pill-row">
+              <span class="pill">Audio-LM</span><span class="pill">LoRA</span>
+              <span class="pill">ZeroGPU</span><span class="pill">CSJ</span>
+            </div>
+          </article>
+
           <article class="card wide" data-reveal>
             <span class="meta">Python</span>
             <h3>
@@ -150,21 +176,6 @@
             <div class="pill-row">
               <span class="pill">PyTorch</span><span class="pill">Conformer</span>
               <span class="pill">JSUT</span><span class="pill">Phone-level ASR</span>
-            </div>
-          </article>
-
-          <article class="card" data-reveal>
-            <span class="meta">Model</span>
-            <h3>
-              <a href="https://huggingface.co/Rudy-Ong/ja_devoicing_vowel_phone3_r3"
-                >ja_devoicing_vowel_phone3_r3</a
-              >
-            </h3>
-            <p>
-              The trained checkpoint behind the detector above, running live on Hugging Face Spaces.
-            </p>
-            <div class="pill-row">
-              <span class="pill">Hugging Face</span><span class="pill">Gradio</span>
             </div>
           </article>
 
