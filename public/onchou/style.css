@@ -344,6 +344,12 @@ main {
   margin-top: 1rem;
 }
 
+/* A hidden card (the unsupported-browser notice) is still a sibling, so the
+   rule above would push the card after it down for nothing. */
+.card[hidden] + .card {
+  margin-top: 0;
+}
+
 button {
   font-family: inherit;
 }
@@ -1193,6 +1199,11 @@ main.tutorial {
 
 /* Beside the card on a wide screen, below it on a phone. */
 @media (min-width: 900px) {
+  /* The header spans both columns, so the title and the menu button line
+     up with the card and the side panel below them. */
+  .app-header {
+    max-width: 800px;
+  }
   main {
     max-width: 800px;
     display: grid;
