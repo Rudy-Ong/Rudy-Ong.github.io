@@ -1,0 +1,639 @@
+// pitch-detect.js -- microphone capture + per-frame F0 (pitch) estimation.
+//
+// Exposes a single global `PitchDetect` (IIFE-scoped), matching the style of
+// sibling apps' plain-<script> globals. No external library, no CDN script.
+//
+// Pipeline: getUserMedia -> AudioContext -> AnalyserNode, polled via
+// setInterval (see "Open items" in the design spec: AnalyserNode polling
+// chosen over AudioWorklet here for simplicity -- no separate worklet module
+// to load or postMessage plumbing to wire up. setInterval rather than
+// requestAnimationFrame specifically because rAF stops entirely in a
+// backgrounded tab, which would truncate a recording if the learner switches
+// away mid-take). Each poll reads the current time-domain buffer and runs
+// autocorrelation-based F0 estimation on it.
+//
+// Caveat, verified in-browser: setInterval keeps firing in a hidden tab but
+// is THROTTLED to roughly once per second there, so a 3s take captured while
+// the tab is hidden yields ~3 frames instead of ~150 -- enough to segment
+// and score, but the result is meaningless. Nothing here can defeat that
+// throttle (only an AudioWorklet, which runs on the audio thread, would);
+// app.js therefore watches document visibility across the recording span and
+// tells the learner rather than scoring a trace that sparse. Anything that
+// changes HOP_MS or this polling strategy needs to keep that guard honest.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(root);
+  else root.PitchDetect = factory(root);
+})(typeof self !== 'undefined' ? self : this, function (root) {
+  'use strict';
+
+  // Frame size: 1024 samples. At a typical 48kHz mic sample rate that's
+  // ~21.3ms of audio per frame -- short enough to track pitch changes within
+  // a single mora (moras are typically 100-200ms), long enough to contain at
+  // least 2-3 periods of the lowest voice-relevant frequency we care about
+  // (~75Hz for a low male voice: one period is ~13.3ms, so 1024 samples at
+  // 48kHz comfortably spans several periods, which normalized autocorrelation
+  // needs to find a reliable lag peak). This is the latency-vs-frequency-
+  // resolution trade-off: smaller frames track fast pitch movement better
+  // but make low-frequency periods unreliable to detect; 1024 is a standard
+  // middle ground for speech F0 tracking.
+  var FRAME_SIZE = 1024;
+
+  // Hop size: how often (in ms) we poll the analyser and record a frame.
+  // 20ms hop gives ~50 pitch samples/sec, dense enough for smooth per-mora
+  // medians without polling faster than the rAF loop can realistically
+  // sustain.
+  var HOP_MS = 20;
+
+  // Plausible human voice F0 range in Hz -- autocorrelation lag search is
+  // bounded to this range both to reject octave errors and to skip
+  // unproductive lag values.
+  var MIN_HZ = 70;
+  var MAX_HZ = 400;
+
+  // Below this normalized autocorrelation confidence, a frame is treated as
+  // unvoiced (hz: null) rather than trusting a noisy pitch estimate.
+  var VOICING_THRESHOLD = 0.35;
+
+  // Recording auto-stops after this many ms if the caller doesn't stop it
+  // first, per the spec's "max duration auto-stop, e.g. 3s" suggestion.
+  var MAX_DURATION_MS = 3000;
+
+  var state = null; // set while a recording is in progress; null otherwise
+
+  function nowMs() {
+    return typeof performance !== 'undefined' ? performance.now() : Date.now();
+  }
+
+  // Candidate containers for the playback tap, best-first. The F0 analysis
+  // never touches this recording -- it exists only so the learner can hear
+  // their own attempt back -- so any container the browser will actually
+  // produce is fine; we just need one it accepts. Chrome/Firefox take webm/
+  // opus, Safari only mp4/aac.
+  var AUDIO_MIME_CANDIDATES = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/mp4',
+    'audio/ogg;codecs=opus',
+  ];
+
+  // Resolves the MediaRecorder constructor, or null if this browser has
+  // none. Falls back to the bare global the same way unsupportedReason()
+  // does for `navigator`: under CommonJS the UMD wrapper's `root` is
+  // `module.exports`, not the global object, so `root.MediaRecorder` alone
+  // would be permanently undefined in Node and leave these probes
+  // untestable.
+  function mediaRecorderCtor() {
+    if (root && typeof root.MediaRecorder === 'function') return root.MediaRecorder;
+    if (typeof MediaRecorder === 'function') return MediaRecorder;
+    return null;
+  }
+
+  // Whether this browser can hand back a playable recording of the attempt.
+  // Separate from isSupported(): a browser without MediaRecorder can still
+  // do the whole detect-and-score flow, it just can't offer playback, so
+  // this must never gate recording itself.
+  function playbackSupported() {
+    return mediaRecorderCtor() !== null;
+  }
+
+  // Picks the first container this browser admits to supporting, or null to
+  // let MediaRecorder choose its own default (older implementations lack
+  // isTypeSupported entirely).
+  function pickAudioMime() {
+    var MR = mediaRecorderCtor();
+    if (!MR) return null;
+    if (typeof MR.isTypeSupported !== 'function') return null;
+    for (var i = 0; i < AUDIO_MIME_CANDIDATES.length; i++) {
+      if (MR.isTypeSupported(AUDIO_MIME_CANDIDATES[i])) return AUDIO_MIME_CANDIDATES[i];
+    }
+    return null;
+  }
+
+  // Distinguishes *why* recording is unavailable, since the two causes need
+  // very different user-facing advice: a genuinely old/incapable browser
+  // should be told to upgrade, but a modern browser serving the page over an
+  // insecure origin (plain http on anything other than localhost/127.0.0.1)
+  // hides navigator.mediaDevices entirely as a security measure -- that user
+  // needs to fix the URL (use localhost, or HTTPS), not switch browsers.
+  // Returns one of 'insecure-context' | 'no-media-devices' | 'no-audio-context'
+  // | null (null means recording is supported). js/app.js's boot() depends on
+  // this exact function existing and being exported -- do not remove it
+  // without also updating app.js's UNSUPPORTED_MESSAGES/boot() call site.
+  function unsupportedReason() {
+    var w = (typeof window !== 'undefined') ? window : root;
+    if (w && w.isSecureContext === false) return 'insecure-context';
+    var nav = (typeof navigator !== 'undefined') ? navigator : (root && root.navigator);
+    if (!nav || !nav.mediaDevices || typeof nav.mediaDevices.getUserMedia !== 'function') {
+      return 'no-media-devices';
+    }
+    if (!(root && (root.AudioContext || root.webkitAudioContext))) return 'no-audio-context';
+    return null;
+  }
+
+  function isSupported() {
+    return unsupportedReason() === null;
+  }
+
+  // Normalized autocorrelation F0 estimate for one frame of time-domain
+  // samples (Float32Array, values in [-1, 1]). Returns a frequency in Hz, or
+  // null if the frame doesn't look voiced.
+  function estimatePitch(samples, sampleRate) {
+    var n = samples.length;
+
+    // Remove DC offset -- an unremoved DC bias inflates autocorrelation at
+    // all lags and can mask the true periodicity peak.
+    var mean = 0;
+    for (var i = 0; i < n; i++) mean += samples[i];
+    mean /= n;
+
+    var buf = new Float32Array(n);
+    var energy = 0;
+    for (i = 0; i < n; i++) {
+      var v = samples[i] - mean;
+      buf[i] = v;
+      energy += v * v;
+    }
+
+    // Near-silent frame -- not enough signal energy to trust any lag peak.
+    if (energy < 1e-6) return null;
+
+    var minLag = Math.floor(sampleRate / MAX_HZ);
+    var maxLag = Math.ceil(sampleRate / MIN_HZ);
+    maxLag = Math.min(maxLag, n - 1);
+    if (minLag < 1) minLag = 1;
+    if (maxLag <= minLag) return null;
+
+    var bestLag = -1;
+    var bestCorr = 0;
+    // Correlation at every lag we scan, so we can look for a smaller lag
+    // (higher frequency) whose peak is nearly as strong as the global max --
+    // see the octave-error guard below.
+    var corrAtLag = new Float32Array(maxLag + 1);
+
+    for (var lag = minLag; lag <= maxLag; lag++) {
+      var corr = 0;
+      var normA = 0;
+      var normB = 0;
+      var limit = n - lag;
+      for (var j = 0; j < limit; j++) {
+        var a = buf[j];
+        var b = buf[j + lag];
+        corr += a * b;
+        normA += a * a;
+        normB += b * b;
+      }
+      var denom = Math.sqrt(normA * normB);
+      var normalized = denom > 0 ? corr / denom : 0;
+      corrAtLag[lag] = normalized;
+      if (normalized > bestCorr) {
+        bestCorr = normalized;
+        bestLag = lag;
+      }
+    }
+
+    if (bestLag < 0 || bestCorr < VOICING_THRESHOLD) return null;
+
+    // Octave-error guard: a harmonic-rich voiced frame can score a hair
+    // higher at 2x/3x the true period than at the true period itself,
+    // which would make the raw global argmax report half (or a third) of
+    // the real F0. Check whether an exact submultiple of the detected lag
+    // (bestLag/2, bestLag/3, ...) is *also* strongly correlated -- if so,
+    // that submultiple is the true (shorter) period and bestLag is a
+    // multiple of it, so prefer the shorter lag. This only considers exact
+    // integer divisions of bestLag, not every lag in range, so it can't be
+    // fooled by an unrelated lag that happens to correlate well by chance.
+    var acceptThreshold = bestCorr * 0.9;
+    // Every candidate is a submultiple of the ORIGINAL detected peak
+    // (rawBestLag), not of `bestLag` as it gets reassigned below -- dividing
+    // the running (already-corrected) value here would test the wrong lags
+    // for k=3..6 once an earlier k has already matched (e.g. bestLag/2 then
+    // (bestLag/2)/3 instead of bestLag/3), which can under- or over-correct
+    // the pitch by an extra octave.
+    var rawBestLag = bestLag;
+    for (var k = 2; k <= 6; k++) {
+      var candidateLag = Math.round(rawBestLag / k);
+      if (candidateLag < minLag) break;
+      if (corrAtLag[candidateLag] >= acceptThreshold) {
+        bestLag = candidateLag;
+      }
+    }
+
+    var hz = sampleRate / bestLag;
+    if (hz < MIN_HZ || hz > MAX_HZ) return null;
+    return hz;
+  }
+
+  // startRecording(opts) -> Promise
+  // opts.onAudio(blobOrNull) is called exactly once per started recording,
+  // after capture has fully stopped, with a playable Blob of what the mic
+  // heard (or null if this browser can't produce one / nothing was
+  // captured). It fires on BOTH the stopRecording() and the auto-stop path,
+  // and always LATER than the trace is handed back -- MediaRecorder only
+  // flushes its final chunk asynchronously on its own 'stop' event, so the
+  // caller must treat playback as arriving after scoring, not with it.
+  // opts.onAutoStop(trace) is called if MAX_DURATION_MS elapses before the
+  // caller calls stopRecording() -- the caller should treat this exactly
+  // like the learner tapping Stop (run mora-segment on the trace, re-enable
+  // the Record button) since `state` is already cleared by the time this
+  // fires: calling stopRecording() afterward is safe and just returns [].
+  function startRecording(opts) {
+    opts = opts || {};
+    if (state) {
+      return Promise.reject({ type: 'already-recording', message: 'A recording is already in progress.' });
+    }
+    if (!isSupported()) {
+      return Promise.reject({ type: 'unsupported', message: 'Microphone recording is not supported in this browser.' });
+    }
+
+    // Reserve the slot SYNCHRONOUSLY, before the async getUserMedia call --
+    // the `if (state)` check above only protects against a call made after
+    // a previous recording has fully finished setup. Without this, two
+    // overlapping startRecording() calls (e.g. one still waiting on the
+    // mic-permission prompt while a second is triggered) would both observe
+    // state === null and both proceed, each building an independent
+    // capture pipeline with only the last one's `begin()` winning `state` --
+    // orphaning the other's live mic stream/timers. Every path below that
+    // can fail (getUserMedia rejection, ctx.resume() rejection) MUST reset
+    // state back to null, or a single failed attempt would permanently wedge
+    // every future startRecording() call behind 'already-recording'.
+    state = { pending: true };
+    // Held in the closure so stopRecording() can cancel an attempt that is
+    // still waiting on the mic-permission prompt: begin() checks this flag
+    // and tears the pipeline down instead of going live. Without it, a stop
+    // during that window left `state` as this placeholder with no teardown
+    // to call, wedging every later startRecording() behind
+    // 'already-recording' until (or unless) getUserMedia resolved.
+    var slot = state;
+
+    // Both paths keep the browser's default processing (noise suppression,
+    // echo cancellation, gain control). Turning it off for the karaoke was
+    // tried: the live tracker liked it, but the same stream is what the
+    // MediaRecorder sends to the coach, and without noise suppression the
+    // quiet tail after the speech survived the server's -40 dB trim, made the
+    // take look 1.3x longer than the reference, and got its alignment
+    // rejected. The karaoke handles onset glitches itself instead (see
+    // OUTLIER_ST in js/karaoke.js).
+    return root.navigator.mediaDevices.getUserMedia({ audio: true }).then(
+      function (stream) {
+        var AudioCtx = root.AudioContext || root.webkitAudioContext;
+        var ctx = new AudioCtx();
+        var source = ctx.createMediaStreamSource(stream);
+        var analyser = ctx.createAnalyser();
+        analyser.fftSize = FRAME_SIZE; // fftSize sets the time-domain buffer length directly
+        source.connect(analyser);
+
+        var timeDomainBuf = new Float32Array(analyser.fftSize);
+        var trace = [];
+
+        // Playback tap: a MediaRecorder on the SAME stream the analyser
+        // reads, so what the learner hears back is exactly the audio that
+        // was scored -- not a second, separately-captured take. Entirely
+        // best-effort: any failure here (no MediaRecorder, a container the
+        // browser accepts then chokes on, a start() throw) must leave the
+        // pitch pipeline untouched, so every call is guarded and the
+        // callback simply reports null.
+        var onAudio = typeof opts.onAudio === 'function' ? opts.onAudio : null;
+        var audioChunks = [];
+        var recorder = null;
+        var audioDelivered = false;
+        var recorderStartedAt = null;
+
+        function deliverAudio(blob) {
+          if (!onAudio || audioDelivered) return;
+          audioDelivered = true;
+          onAudio(blob && blob.size > 0 ? blob : null);
+        }
+
+        var MediaRecorderCtor = mediaRecorderCtor();
+        if (onAudio && MediaRecorderCtor) {
+          try {
+            var mime = pickAudioMime();
+            recorder = mime
+              ? new MediaRecorderCtor(stream, { mimeType: mime })
+              : new MediaRecorderCtor(stream);
+            recorder.ondataavailable = function (e) {
+              if (e.data && e.data.size > 0) audioChunks.push(e.data);
+            };
+            recorder.onstop = function () {
+              deliverAudio(audioChunks.length
+                ? new Blob(audioChunks, { type: recorder.mimeType || (mime || 'audio/webm') })
+                : null);
+            };
+            // A recorder that errors mid-take still owes the caller its one
+            // callback, or app.js would wait forever for playback that is
+            // never coming.
+            recorder.onerror = function () { deliverAudio(null); };
+            recorder.start();
+            recorderStartedAt = nowMs();
+          } catch (e) {
+            recorder = null;
+          }
+        }
+        var startTime = nowMs();
+        var intervalId = null;
+        var stopTimeoutId = null;
+        var stopped = false;
+
+        // Optional streaming path, used by the karaoke mode (see
+        // js/live-pitch.js). `opts.tracker(sampleRate)` returns an object
+        // whose push(samples) yields {tMs, hz} frames; when one is given the
+        // capture switches from polling the AnalyserNode to a sample tap, so
+        // every sample is analysed exactly once and frame times come from the
+        // sample clock. Without it, nothing below changes.
+        var trackerFactory = typeof opts.tracker === 'function' ? opts.tracker : null;
+        var onFrame = typeof opts.onFrame === 'function' ? opts.onFrame : null;
+        var maxDurationMs = (typeof opts.maxDurationMs === 'number' && opts.maxDurationMs > 0)
+          ? opts.maxDurationMs : MAX_DURATION_MS;
+        var tapNode = null;
+        var tapSink = null;
+        // Which clock frame times are on: 'wall' (performance.now() from
+        // startTime, the polling path) or 'audio' (ctx.currentTime from the
+        // moment the tap connected). elapsedMs() reads the same clock the
+        // frames use, so a caller animating a cursor stays in step with them.
+        var clock = 'wall';
+        var clockZeroCtx = 0;
+        var clockZeroAt = startTime;
+
+        function emit(frame) {
+          trace.push(frame);
+          if (onFrame) {
+            // A throwing caller must not kill the capture loop mid-take.
+            try { onFrame(frame); } catch (e) { /* ignore */ }
+          }
+        }
+
+        function captureFrame() {
+          if (stopped) return;
+          analyser.getFloatTimeDomainData(timeDomainBuf);
+          var hz = estimatePitch(timeDomainBuf, ctx.sampleRate);
+          var tMs = nowMs() - startTime;
+          emit({ tMs: tMs, hz: hz });
+        }
+
+        function startPolling() {
+          if (intervalId === null && !stopped) intervalId = setInterval(captureFrame, HOP_MS);
+        }
+
+        // Connects the sample tap. Resolves once samples are flowing (or the
+        // polling fallback has been started instead); never rejects, because
+        // any failure here has a working answer -- the old path.
+        function startTap() {
+          var tracker = null;
+          try { tracker = trackerFactory(ctx.sampleRate); } catch (e) { tracker = null; }
+          if (!tracker || typeof tracker.push !== 'function') {
+            startPolling();
+            return Promise.resolve();
+          }
+
+          function consume(samples) {
+            if (stopped) return;
+            var frames = tracker.push(samples);
+            for (var i = 0; i < frames.length; i++) emit({ tMs: frames[i].tMs, hz: frames[i].hz });
+          }
+
+          // Chrome only pulls audio through nodes that reach the destination,
+          // so the tap is connected onward -- through a muted gain, or the
+          // learner would hear their own microphone.
+          tapSink = ctx.createGain();
+          tapSink.gain.value = 0;
+          tapSink.connect(ctx.destination);
+
+          function goLive(node) {
+            tapNode = node;
+            clock = 'audio';
+            clockZeroCtx = ctx.currentTime;
+            clockZeroAt = nowMs();
+          }
+
+          function viaScriptProcessor() {
+            if (stopped) return Promise.resolve();
+            if (typeof ctx.createScriptProcessor !== 'function') return Promise.reject(new Error('no tap'));
+            // Deprecated, but the only sample-exact tap on browsers without
+            // AudioWorklet, and still universally implemented.
+            var node = ctx.createScriptProcessor(1024, 1, 1);
+            node.onaudioprocess = function (e) {
+              consume(new Float32Array(e.inputBuffer.getChannelData(0)));
+            };
+            source.connect(node);
+            node.connect(tapSink);
+            goLive(node);
+            return Promise.resolve();
+          }
+
+          var worklet = (ctx.audioWorklet && typeof root.AudioWorkletNode === 'function')
+            ? ctx.audioWorklet.addModule('js/pcm-tap-worklet.js').then(function () {
+              if (stopped) return;
+              var node = new root.AudioWorkletNode(ctx, 'onchou-pcm-tap', {
+                numberOfInputs: 1,
+                numberOfOutputs: 1,
+                channelCount: 1,
+                channelCountMode: 'explicit',
+              });
+              node.port.onmessage = function (e) { consume(e.data); };
+              source.connect(node);
+              node.connect(tapSink);
+              goLive(node);
+            })
+            : Promise.reject(new Error('no AudioWorklet'));
+
+          return worklet
+            .catch(viaScriptProcessor)
+            .catch(function () { startPolling(); });
+        }
+
+        function elapsedMs() {
+          if (clock === 'audio') return Math.max(0, (ctx.currentTime - clockZeroCtx) * 1000);
+          return nowMs() - startTime;
+        }
+
+        // How much audio the MediaRecorder had already captured when frame
+        // time zero began. The karaoke tells the server where in the
+        // *recording* speech was cued, and the recording starts a little
+        // before the tap does (addModule is asynchronous).
+        function recordingOffsetMs() {
+          if (recorderStartedAt === null) return 0;
+          return Math.max(0, clockZeroAt - recorderStartedAt);
+        }
+
+        if (!trackerFactory) startPolling();
+        stopTimeoutId = setTimeout(function () {
+          // Auto-stop at MAX_DURATION_MS -- a normal path, not an error: the
+          // spec's UI flow treats hitting the max duration the same as the
+          // learner tapping Stop themselves, immediately followed by
+          // analysis and (optionally) Retry. So this must NOT leave `state`
+          // wedged non-null forever -- mark it auto-stopped and clear
+          // `state` here rather than waiting for a stopRecording() call
+          // that may never come (the caller who set up onAutoStop already
+          // got the trace and moved on). Clear `state` BEFORE invoking the
+          // caller's onAutoStop callback, not after: that callback runs the
+          // caller's own code (app.js's handleTrace) synchronously, and if
+          // it throws, a `state = null` placed after the call would never
+          // run, wedging `state` non-null forever and permanently rejecting
+          // every future startRecording() call with 'already-recording'.
+          //
+          // Read `opts.onAutoStop` from the closure, not `state.onAutoStop`:
+          // if this fires while the ctx.resume() branch below is still
+          // pending, `state` is still the synchronous `{pending: true}`
+          // placeholder set at the top of startRecording(), which has no
+          // `.onAutoStop` -- reading it off `state` would silently drop the
+          // callback instead of telling the caller the recording ended.
+          teardown();
+          state = null;
+          if (typeof opts.onAutoStop === 'function') opts.onAutoStop(trace.slice());
+        }, maxDurationMs);
+
+        function teardown() {
+          if (stopped) return;
+          stopped = true;
+          if (intervalId !== null) clearInterval(intervalId);
+          if (stopTimeoutId !== null) clearTimeout(stopTimeoutId);
+          // Stop the recorder BEFORE the tracks it reads: killing the tracks
+          // first can end the take without a final flush on some
+          // implementations, losing the last chunk (or all of it, for a very
+          // short attempt). recorder.stop() is asynchronous -- its 'stop'
+          // event is what invokes the caller's onAudio.
+          if (recorder) {
+            try {
+              if (recorder.state !== 'inactive') recorder.stop();
+              else deliverAudio(null);
+            } catch (e) {
+              deliverAudio(null);
+            }
+          } else {
+            deliverAudio(null);
+          }
+          stream.getTracks().forEach(function (track) { track.stop(); });
+          if (tapNode) {
+            try { tapNode.disconnect(); } catch (e) { /* ignore */ }
+            if (tapNode.port) tapNode.port.onmessage = null;
+            tapNode.onaudioprocess = null;
+          }
+          if (tapSink) { try { tapSink.disconnect(); } catch (e) { /* ignore */ } }
+          try { source.disconnect(); } catch (e) { /* ignore */ }
+          try { ctx.close(); } catch (e) { /* ignore */ }
+        }
+
+        function begin() {
+          // If the MAX_DURATION_MS timeout above already fired and tore this
+          // pipeline down -- reachable when ctx.resume() below takes long
+          // enough to still be pending at the 3s mark -- don't resurrect
+          // `state` on top of an already-stopped/closed context. Reject
+          // instead, so the caller's .catch() runs rather than its .then()
+          // reporting a freshly-started recording that is actually already
+          // over (its onAutoStop callback already ran, or was skipped -- see
+          // the comment above).
+          if (stopped) {
+            return Promise.reject({ type: 'unknown', message: 'Recording ended before it could start.' });
+          }
+          // Stopped by the caller while the mic prompt / ctx.resume() was
+          // still pending -- tear down rather than going live for a take
+          // nobody is waiting for, and release the slot so the next
+          // startRecording() isn't rejected as 'already-recording'.
+          if (slot.cancelled) {
+            teardown();
+            state = null;
+            return Promise.reject({ type: 'cancelled', message: 'Recording was cancelled before it started.' });
+          }
+          state = {
+            trace: trace,
+            teardown: teardown,
+            isStopped: function () { return stopped; },
+            onAutoStop: typeof opts.onAutoStop === 'function' ? opts.onAutoStop : null,
+            elapsedMs: elapsedMs,
+            recordingOffsetMs: recordingOffsetMs,
+          };
+          return true;
+        }
+
+        // Some browsers create the AudioContext in a 'suspended' state
+        // (autoplay-policy related) until explicitly resumed -- if we
+        // resolve while suspended, getFloatTimeDomainData reads all zeros
+        // and every frame comes back unvoiced even though the mic and
+        // pitch estimator both work fine. Resume before telling the caller
+        // "frame capture has begun".
+        if (ctx.state === 'suspended') {
+          return ctx.resume().then(
+            function () { return (trackerFactory ? startTap() : Promise.resolve()).then(begin); },
+            function (err) {
+              // Release the reserved slot -- otherwise a rejected resume()
+              // would leave `state` wedged as the {pending: true} placeholder
+              // forever, permanently blocking every future startRecording()
+              // call behind 'already-recording'.
+              state = null;
+              stream.getTracks().forEach(function (track) { track.stop(); });
+              try { ctx.close(); } catch (e) { /* ignore */ }
+              return Promise.reject({ type: 'unknown', message: (err && err.message) || 'Could not start recording.' });
+            }
+          );
+        }
+        if (trackerFactory) return startTap().then(begin);
+        return begin();
+      },
+      function (err) {
+        // getUserMedia rejected -- release the reserved slot for the same
+        // reason as the ctx.resume() rejection handler above.
+        state = null;
+        var name = err && err.name;
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError') {
+          return Promise.reject({ type: 'permission-denied', message: 'Microphone access was denied.' });
+        }
+        if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+          return Promise.reject({ type: 'no-device', message: 'No microphone was found.' });
+        }
+        return Promise.reject({ type: 'unknown', message: (err && err.message) || 'Could not start recording.' });
+      }
+    );
+  }
+
+  // Milliseconds since frame time zero of the live recording, on the same
+  // clock its frames are stamped with; null when nothing is recording. Lets
+  // the karaoke drive its cursor from the audio clock instead of from a
+  // second, drifting timer of its own.
+  function elapsedMs() {
+    return state && typeof state.elapsedMs === 'function' ? state.elapsedMs() : null;
+  }
+
+  function recordingOffsetMs() {
+    return state && typeof state.recordingOffsetMs === 'function' ? state.recordingOffsetMs() : 0;
+  }
+
+  function stopRecording() {
+    // `state` can be the synchronous `{pending: true}` placeholder set at
+    // the top of startRecording() (before getUserMedia has resolved), which
+    // has neither `.trace` nor `.teardown` -- so this must not just check
+    // for null, or it throws. Not reachable through this app's own UI today
+    // (Record/Space are disabled for this whole window -- see app.js's
+    // recordingActive), but stopRecording() is a public entry point and
+    // must both survive being called during it and not leave the pipeline
+    // running: the `cancelled` flag below is what begin() honors to tear
+    // down a take that was stopped before it went live.
+    if (!state) return [];
+    if (!state.trace) {
+      // The synchronous `{pending: true}` placeholder: no pipeline exists to
+      // tear down yet, so flag it and let begin() do the teardown when
+      // getUserMedia finally resolves.
+      state.cancelled = true;
+      return [];
+    }
+    var trace = state.trace.slice();
+    state.teardown();
+    state = null;
+    return trace;
+  }
+
+  return {
+    isSupported: isSupported,
+    unsupportedReason: unsupportedReason,
+    playbackSupported: playbackSupported,
+    startRecording: startRecording,
+    stopRecording: stopRecording,
+    elapsedMs: elapsedMs,
+    recordingOffsetMs: recordingOffsetMs,
+    // Exposed for testing the pure estimator against synthetic signals.
+    _estimatePitch: estimatePitch,
+    _FRAME_SIZE: FRAME_SIZE,
+    _HOP_MS: HOP_MS,
+    _MAX_DURATION_MS: MAX_DURATION_MS,
+    _pickAudioMime: pickAudioMime,
+  };
+});

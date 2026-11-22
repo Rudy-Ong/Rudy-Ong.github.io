@@ -3,17 +3,32 @@
 Source for [rudy-ong.github.io](https://rudy-ong.github.io) — Japanese vowel devoicing:
 a live detector, and an interactive look at why it is hard to see.
 
-## The detector
+## The trainer
 
-The page embeds
-[Japanese Phone ASR — Vowel Devoicing](https://huggingface.co/spaces/Rudy-Ong/jp-vowel_devoicing),
-running an Audio-LM + LoRA model on Hugging Face Spaces. Record or upload Japanese speech and the model marks,
-phone by phone, where devoicing occurred. Training code lives in
-[ASR_JA_Vowel_Devoicing](https://github.com/Rudy-Ong/ASR_JA_Vowel_Devoicing).
+The page embeds onchou, a Japanese pitch-accent and vowel-devoicing trainer
+(original project: [bagustris/onchou](https://github.com/bagustris/onchou)).
+The trainer is served from this site at `/onchou/`, so the frame is
+same-origin. Everything runs in the browser: there is no Hugging Face Space
+and no server.
 
-The iframe is deliberately **not** lazy-loaded — it is the primary content — and a
-placeholder shows until the Space reports `load`, because a sleeping Space takes a few
-seconds to wake.
+`public/onchou/` is generated, so don't edit it by hand. It holds only the
+app's runtime files. Its source repository is private. To refresh it from an
+onchou checkout:
+
+```bash
+python tools/publish-static.py ../Rudy-Ong.github.io/public/onchou
+```
+
+Vite copies `public/` into the build unchanged.
+
+The natural model voices are VOICEVOX Nemo recordings. onchou's
+`tools/build-references.py` generates them once with the Nemo Docker engine.
+Pitch tracking (aubio, GPL-3.0, with its licence texts shipped in
+`public/onchou/third-party/aubiojs/`) and scoring run on the visitor's
+device.
+
+The frame needs `allow="microphone"` to record. A placeholder shows until the
+frame reports `load`.
 
 ## The articulation demos
 

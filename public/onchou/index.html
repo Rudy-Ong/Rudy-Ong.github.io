@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>onchou</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="app-header">
+  <button id="btn-settings" type="button" class="icon-btn settings-btn" aria-haspopup="dialog" aria-label="設定 Settings">
+    <span class="hamburger-icon"><span></span><span></span><span></span></span>
+  </button>
+  <h1>音調 onchou</h1>
+</header>
+
+<div id="settings-overlay" class="settings-overlay" hidden>
+  <div id="settings-panel" class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="settings-header">
+      <h2 id="settings-title">設定<span>Settings</span></h2>
+      <button id="btn-settings-close" type="button" class="icon-btn" aria-label="閉じる Close">&times;</button>
+    </div>
+
+    <div class="settings-row">
+      <span class="settings-row-label" id="setting-auto-play-label">自動再生<span>Auto-play reference audio for each new word</span></span>
+      <label class="switch">
+        <input type="checkbox" id="setting-auto-play" aria-labelledby="setting-auto-play-label">
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+
+    <div class="settings-row">
+      <span class="settings-row-label" id="setting-show-contour-label">ピッチカーブを表示<span>Show raw pitch-curve graph</span></span>
+      <label class="switch">
+        <input type="checkbox" id="setting-show-contour" aria-labelledby="setting-show-contour-label">
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+
+    <!-- Coach settings. The whole block is revealed by js/app.js only when
+         /api/health reports the TTS engine is up, so it never appears on a
+         static deployment where none of it would do anything. -->
+    <div id="setting-coach-row" class="settings-row" hidden>
+      <span class="settings-row-label" id="setting-coach-label">発音コーチ<span>Send recordings to the server for detailed feedback</span></span>
+      <label class="switch">
+        <input type="checkbox" id="setting-coach" aria-labelledby="setting-coach-label">
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+
+    <div id="setting-voice-row" class="settings-row settings-row-column" hidden>
+      <span class="settings-row-label">お手本の声<span>Model voice: the voice you hear. Your own voice type is set in the side panel.</span></span>
+      <div id="setting-voice" class="settings-segmented" role="radiogroup" aria-label="Reference voice">
+        <button type="button" role="radio" aria-checked="true" class="segmented-btn active" data-value="female">女性<span>Female</span></button>
+        <button type="button" role="radio" aria-checked="false" class="segmented-btn" data-value="male">男性<span>Male</span></button>
+      </div>
+    </div>
+
+    <!-- Karaoke mode and speech rate, both coach-only: the karaoke paces its
+         lyric line and pitch bars from the VOICEVOX reference's per-mora
+         timing, and the rate is VOICEVOX's speedScale. Revealed together
+         with the coach toggle by js/app.js. -->
+    <div id="setting-karaoke-row" class="settings-row" hidden>
+      <span class="settings-row-label" id="setting-karaoke-label">カラオケモード<span>Read the hiragana along a moving bar, with live pitch</span></span>
+      <label class="switch">
+        <input type="checkbox" id="setting-karaoke" aria-labelledby="setting-karaoke-label">
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+
+    <div id="setting-rate-row" class="settings-row settings-row-column" hidden>
+      <span class="settings-row-label">話す速さ<span>Speech rate (reference audio and karaoke timing)</span></span>
+      <div id="setting-rate" class="settings-segmented" role="radiogroup" aria-label="Speech rate">
+        <button type="button" role="radio" aria-checked="false" class="segmented-btn" data-value="0.75">0.75×<span>ゆっくり</span></button>
+        <button type="button" role="radio" aria-checked="false" class="segmented-btn" data-value="0.9">0.9×<span>少し遅く</span></button>
+        <button type="button" role="radio" aria-checked="true" class="segmented-btn active" data-value="1">1.0×<span>普通</span></button>
+        <button type="button" role="radio" aria-checked="false" class="segmented-btn" data-value="1.2">1.2×<span>速く</span></button>
+      </div>
+    </div>
+
+    <div class="settings-row settings-row-column">
+      <span class="settings-row-label">練習レベル<span>Practice level (word length, cumulative)</span></span>
+      <div id="setting-level" class="settings-segmented" role="radiogroup" aria-label="Practice level">
+        <button type="button" role="radio" aria-checked="false" class="segmented-btn" data-value="2">2<span>≤2 拍</span></button>
+        <button type="button" role="radio" aria-checked="false" class="segmented-btn" data-value="3">3<span>≤3 拍</span></button>
+        <button type="button" role="radio" aria-checked="false" class="segmented-btn" data-value="4">4<span>≤4 拍</span></button>
+        <button type="button" role="radio" aria-checked="true" class="segmented-btn active" data-value="all">全部<span>All</span></button>
+      </div>
+    </div>
+
+    <div class="settings-row settings-row-column">
+      <span class="settings-row-label">アプリとしてインストール<span>Install on PC &amp; smartphone</span></span>
+      <button id="btn-install" type="button" class="settings-install-btn" hidden>インストール<span>Install</span></button>
+      <p id="settings-install-hint" class="settings-install-hint" hidden></p>
+    </div>
+
+    <div class="settings-row settings-row-column settings-about">
+      <span class="settings-row-label">このアプリについて<span>About</span></span>
+      <p class="about-app">音調 onchou</p>
+      <p class="about-credit">お手本の音声: VOICEVOX Nemo<span>Model voices are generated with VOICEVOX Nemo</span></p>
+      <p class="about-credit">ピッチ追跡: <a href="https://github.com/aubio/aubio" target="_blank" rel="noopener noreferrer">aubio</a> (GPL-3.0)<span>Live pitch tracking uses aubio, GPL-3.0-or-later, via aubiojs (MIT). Licence texts: <a href="third-party/aubiojs/COPYING-aubio" target="_blank" rel="noopener">aubio</a>, <a href="third-party/aubiojs/LICENSE-aubiojs" target="_blank" rel="noopener">aubiojs</a>.</span></p>
+      <a class="about-link" href="tutorial/" target="_blank" rel="noopener noreferrer">ピッチアクセント入門<span>Tutorial: how Japanese pitch accent works</span></a>
+      <a class="about-link" href="https://github.com/bagustris/onchou" target="_blank" rel="noopener noreferrer">貢献・問題報告<span>Contribute / report an issue on GitHub</span></a>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <main>
+    <!-- Shown instead of the quiz UI when getUserMedia/Web Audio is
+         unsupported (feature-detected at load via PitchDetect.isSupported()). -->
+    <div id="unsupported-notice" class="card unsupported-notice" hidden>
+      <!-- Populated entirely by js/app.js's boot() from UNSUPPORTED_MESSAGES,
+           keyed off PitchDetect.unsupportedReason() -- do not hardcode
+           fallback copy here (see style.css's #unsupported-notice-text,
+           which relies on this id existing to apply white-space: pre-line
+           to the message's embedded newline). -->
+      <p id="unsupported-notice-text"></p>
+    </div>
+
+    <div id="quiz" class="card word-card" hidden>
+      <p id="word-text" class="word-text"></p>
+      <p id="word-reading" class="word-reading"></p>
+
+      <div class="diagram-row">
+        <span class="diagram-label">Target</span>
+        <div id="target-diagram"></div>
+      </div>
+
+      <div>
+        <button id="play-btn" class="play-btn" type="button" aria-describedby="play-btn-note">▶ Play</button>
+        <p id="play-btn-note" class="play-btn-note" hidden></p>
+      </div>
+
+      <div id="learner-diagram-row" class="diagram-row" hidden>
+        <span class="diagram-label">Your attempt</span>
+        <div id="learner-diagram"></div>
+      </div>
+
+      <!-- Playback of the learner's own take. Revealed by js/app.js only once
+           PitchDetect hands back an audio Blob (which arrives after the
+           trace has already been scored -- MediaRecorder flushes
+           asynchronously), and stays hidden entirely on browsers without
+           MediaRecorder. -->
+      <div id="playback-row" class="playback-row" hidden>
+        <button id="compare-btn" class="secondary-btn" type="button">&#8646; Compare</button>
+        <button id="play-attempt-btn" class="secondary-btn" type="button">&#9654; Your voice</button>
+        <p id="playback-note" class="playback-note" hidden></p>
+      </div>
+
+      <div id="contour-row" class="diagram-row" hidden>
+        <span class="diagram-label">Pitch curve</span>
+        <div id="contour-graph"></div>
+      </div>
+
+      <div id="mora-feedback" class="mora-feedback" hidden></div>
+      <p id="score-text" class="score-text" hidden></p>
+      <p id="detect-message" class="inline-message" hidden></p>
+      <p id="mic-message" class="inline-message" hidden></p>
+
+      <!-- Coach feedback. Populated by js/coach.js only when the app is
+           served from its own container (the Hugging Face Space) and the
+           TTS engine is up; on GitHub Pages there is no API and this whole
+           block stays hidden, leaving the offline behaviour untouched. -->
+      <!-- The sentence to say, shown whenever the coach is on. Every word is
+           practised inside a carrier frame chosen by its part of speech
+           (です for nouns and adjectives, こと for dictionary-form verbs and 大きな-type
+           prenominals; see the wordClass / pos fields in data/words.json),
+           because 〜です after a verb is not Japanese. Only the word plus the
+           following mora is scored; that mora is what separates heiban from
+           odaka. Keep this in step with Coach.carrierText(). -->
+      <p id="coach-sentence-hint" class="coach-sentence-hint" hidden></p>
+
+      <!-- Karaoke panel: count-in, hiragana lyric line, pitch lane (canvas)
+           and the time bar running from -tolerance to the reference's end
+           plus tolerance. Built by js/karaoke.js's createView() on each
+           karaoke take and cleared with the rest of the attempt UI. -->
+      <div id="karaoke-panel" class="karaoke" hidden></div>
+
+      <div id="coach-row" class="coach-row" hidden>
+        <p id="coach-status" class="inline-message" hidden></p>
+        <p id="coach-summary" class="coach-summary" hidden></p>
+        <ul id="coach-notes" class="coach-notes" hidden></ul>
+      </div>
+
+      <span id="rec-indicator" class="rec-indicator" hidden><span class="rec-dot" aria-hidden="true"></span>Recording&hellip;</span>
+
+      <div class="action-row">
+        <button id="record-btn" class="primary-btn" type="button">Record</button>
+        <span class="shortcut-hint">Press Space to record/stop</span>
+      </div>
+      <!-- Scoring an uploaded file needs the server-side aligner, so this
+           row is revealed only when the coach is available. -->
+      <div id="upload-row" class="action-row" hidden>
+        <label class="secondary-btn upload-btn" for="upload-input">Upload audio</label>
+        <input id="upload-input" type="file" accept="audio/*" hidden>
+        <span id="upload-name" class="shortcut-hint"></span>
+      </div>
+      <div class="action-row">
+        <button id="retry-btn" class="secondary-btn" type="button" hidden>Retry</button>
+        <button id="next-btn" class="secondary-btn" type="button">Next word</button>
+      </div>
+    </div>
+
+    <!-- Quick choices beside the practice card (below it on a phone). The
+         voice choices are read by js/app.js on every Play and Record; the
+         devoicing drill needs data/refs/manifest.json, so it stays hidden
+         (.no-refs) until js/static-refs.js has loaded that. -->
+    <aside id="side-panel" class="side-panel no-refs" aria-label="Quick settings and drills">
+      <section class="side-group" aria-labelledby="quick-voice-title">
+        <h2 id="quick-voice-title" class="side-title">声<span>Voices</span></h2>
+        <p class="side-label">あなたの声<span>Your voice: you are scored against voices like it</span></p>
+        <div class="settings-segmented" role="radiogroup" aria-label="Your voice">
+          <button type="button" role="radio" aria-checked="true" class="segmented-btn active" data-quick="learnerGender" data-value="female">♀ 女性<span>Female</span></button>
+          <button type="button" role="radio" aria-checked="false" class="segmented-btn" data-quick="learnerGender" data-value="male">♂ 男性<span>Male</span></button>
+        </div>
+        <p class="side-label">お手本の声<span>Model voice you hear</span></p>
+        <div class="settings-segmented" role="radiogroup" aria-label="Model voice">
+          <button type="button" role="radio" aria-checked="true" class="segmented-btn active" data-quick="voiceGender" data-value="female">♀ 女性<span>Female</span></button>
+          <button type="button" role="radio" aria-checked="false" class="segmented-btn" data-quick="voiceGender" data-value="male">♂ 男性<span>Male</span></button>
+        </div>
+      </section>
+
+      <section class="side-group devoicing-group" aria-labelledby="devoicing-title">
+        <h2 id="devoicing-title" class="side-title">無声化<span>Devoicing drill</span></h2>
+        <p class="side-hint">Only words with a whispered vowel, by length in morae.</p>
+        <div class="shortcut-grid">
+          <button type="button" class="shortcut-btn" data-focus="2" aria-pressed="false">2拍<span class="shortcut-count">–</span></button>
+          <button type="button" class="shortcut-btn" data-focus="3" aria-pressed="false">3拍<span class="shortcut-count">–</span></button>
+          <button type="button" class="shortcut-btn" data-focus="4" aria-pressed="false">4拍<span class="shortcut-count">–</span></button>
+          <button type="button" class="shortcut-btn" data-focus="5+" aria-pressed="false">5拍+<span class="shortcut-count">–</span></button>
+        </div>
+        <button type="button" class="shortcut-btn shortcut-all active" data-focus="all" aria-pressed="true">すべて<span>All words</span></button>
+        <p id="devoicing-status" class="side-hint" aria-live="polite"></p>
+      </section>
+      <p class="side-credit">音声: VOICEVOX Nemo</p>
+    </aside>
+  </main>
+</div>
+
+<script src="js/pitch-diagram.js"></script>
+<script src="js/pitch-detect.js"></script>
+<script src="js/mora-segment.js"></script>
+<script src="js/pitch-contour.js"></script>
+<script src="js/reference-audio.js"></script>
+<script src="js/coach.js"></script>
+<script src="js/static-refs.js"></script>
+<script src="js/live-pitch.js"></script>
+<script src="js/karaoke.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/word-select.js"></script>
+<script src="js/app.js"></script>
+<script>
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js');
+    });
+  }
+</script>
+</body>
+</html>
