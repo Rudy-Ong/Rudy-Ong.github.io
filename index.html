@@ -6,7 +6,7 @@
     <title>Rudy Ong — Japanese speech, vowel devoicing</title>
     <meta
       name="description"
-      content="Rudy Ong — Japanese speech processing. A karaoke-style pitch-accent and vowel-devoicing trainer that runs in the browser, plus an interactive look at what devoicing does to articulation and what it leaves behind."
+      content="Rudy Ong — Japanese speech processing. A live vowel-devoicing detector, a karaoke-style pitch-accent and devoicing trainer, and an interactive look at what devoicing does to articulation."
     />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔊</text></svg>" />
@@ -15,13 +15,13 @@
     <meta property="og:title" content="Rudy Ong — Japanese speech, vowel devoicing" />
     <meta
       property="og:description"
-      content="A karaoke-style Japanese pitch-accent and devoicing trainer, plus an interactive look at what devoicing does to articulation."
+      content="A live Japanese vowel-devoicing detector, a karaoke-style pitch-accent trainer, and an interactive look at what devoicing does to articulation."
     />
     <meta property="og:url" content="https://rudy-ong.github.io/" />
     <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
-    <a class="skip-link" href="#onchou">Skip to the pitch-accent trainer</a>
+    <a class="skip-link" href="#detector">Skip to the devoicing detector</a>
 
     <header class="wrap hero">
       <h1>Rudy Ong</h1>
@@ -44,6 +44,37 @@
     </header>
 
     <main id="main" class="wrap">
+      <section class="section" id="detector" aria-labelledby="detector-title">
+        <h2 id="detector-title">Vowel devoicing, detected from audio</h2>
+        <p class="lead">
+          Record or upload Japanese speech and the model marks, phone by phone, where devoicing
+          actually happened. Devoiced high vowels are upper-cased in the training transcript
+          (<code>s U k i</code>), so recognition and detection happen in one pass rather than two.
+          The demo brackets them in its output — <code>sh [I] t e</code>.
+        </p>
+
+        <div class="embed-wrap">
+          <p class="embed-loading" id="embed-loading">
+            Waking the model on Hugging Face — a sleeping Space takes a few seconds to start.
+          </p>
+          <!-- Not lazy-loaded: this is the primary content of the page, so it should
+               start fetching immediately rather than waiting on the viewport. -->
+          <iframe
+            id="hf-embed"
+            class="embed-frame"
+            src="https://rudy-ong-jp-vowel-devoicing.hf.space"
+            title="Japanese Phone ASR — Vowel Devoicing, running on Hugging Face Spaces"
+            allow="microphone; clipboard-write"
+          ></iframe>
+        </div>
+        <p class="embed-fallback">
+          Not loading? Spaces sleep when idle and take a moment to wake. Open it directly at
+          <a href="https://huggingface.co/spaces/Rudy-Ong/jp-vowel_devoicing"
+            >huggingface.co/spaces/Rudy-Ong/jp-vowel_devoicing</a
+          >.
+        </p>
+      </section>
+
       <section class="section" id="onchou" aria-labelledby="onchou-title">
         <h2 id="onchou-title">Pitch accent and devoicing, practised out loud ・ 音調</h2>
         <p class="lead">
@@ -54,13 +85,13 @@
         </p>
 
         <div class="embed-wrap">
-          <p class="embed-loading" id="embed-loading">Loading the trainer…</p>
+          <p class="embed-loading" id="onchou-loading">Loading the trainer…</p>
           <!-- Same-origin: onchou's runtime files are copied into public/onchou/
                (onchou's tools/publish-static.py). allow=microphone is required
                for recording inside a frame. -->
           <iframe
             id="onchou-embed"
-            class="embed-frame"
+            class="embed-frame embed-frame-tall"
             src="/onchou/"
             title="onchou — Japanese pitch-accent and devoicing trainer"
             allow="microphone; autoplay"

@@ -144,19 +144,21 @@ a:hover { text-decoration-thickness: 2px; }
 }
 .kana-btn[aria-pressed='true'].is-candidate::after { background: #fff; }
 
-/* ---------- Embedded trainer (onchou, served from /onchou/) ---------- */
+/* ---------- Embeds: the Hugging Face Space, and onchou served from /onchou/ ---------- */
 .embed-wrap { position: relative; }
 .embed-loading {
   position: absolute; inset: 0; margin: 0; display: grid; place-items: center;
   text-align: center; padding: 0 24px; color: var(--text-muted); font-size: 0.9rem;
 }
 .embed-frame {
-  position: relative; width: 100%; min-height: 1000px; border: 1px solid var(--border);
+  position: relative; width: 100%; min-height: 880px; border: 1px solid var(--border);
   border-radius: var(--radius); background: transparent; display: block;
 }
-/* Opaque only once the trainer has actually rendered, so the loading note shows through. */
+/* Opaque only once the frame has actually rendered, so the loading note shows through. */
 .embed-frame.is-loaded { background: var(--surface); }
-@media (max-width: 760px) { .embed-frame { min-height: 760px; } }
+/* onchou: card, karaoke and side panel need more height than the Space. */
+.embed-frame-tall { min-height: 1000px; }
+@media (max-width: 760px) { .embed-frame { min-height: 560px; } .embed-frame-tall { min-height: 760px; } }
 .embed-fallback { font-size: 0.86rem; color: var(--text-muted); margin: 10px 0 0; }
 
 /* ---------- Bento ---------- */
