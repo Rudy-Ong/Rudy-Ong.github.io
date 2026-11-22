@@ -106,10 +106,10 @@ function mountReveals(): void {
   });
 }
 
-/** Hide the placeholder once the embedded trainer has actually rendered. */
-function mountEmbed(): void {
-  const frame = document.querySelector<HTMLIFrameElement>('#onchou-embed');
-  const loading = document.querySelector<HTMLElement>('#embed-loading');
+/** Hide an embed's placeholder once its frame has actually rendered. */
+function mountEmbed(frameId: string, loadingId: string): void {
+  const frame = document.querySelector<HTMLIFrameElement>(`#${frameId}`);
+  const loading = document.querySelector<HTMLElement>(`#${loadingId}`);
   if (!frame) return;
   frame.addEventListener('load', () => {
     frame.classList.add('is-loaded');
@@ -124,5 +124,6 @@ function mountYear(): void {
 
 mountLab();
 mountReveals();
-mountEmbed();
+mountEmbed('hf-embed', 'embed-loading');
+mountEmbed('onchou-embed', 'onchou-loading');
 mountYear();

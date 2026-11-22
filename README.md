@@ -3,6 +3,19 @@
 Source for [rudy-ong.github.io](https://rudy-ong.github.io) — Japanese vowel devoicing:
 a live detector, and an interactive look at why it is hard to see.
 
+## The detector
+
+The page opens with
+[Japanese Phone ASR — Vowel Devoicing](https://huggingface.co/spaces/Rudy-Ong/jp-vowel_devoicing),
+running an Audio-LM + LoRA model on Hugging Face Spaces (ZeroGPU). Record or upload Japanese speech and the
+model marks, phone by phone, where devoicing occurred. Training code lives in
+[ASR_JA_Vowel_Devoicing](https://github.com/Rudy-Ong/ASR_JA_Vowel_Devoicing).
+
+The iframe is deliberately **not** lazy-loaded — it is the first content — and a placeholder shows until the
+Space reports `load`, because a sleeping Space takes a few seconds to wake. Each Predict reserves ZeroGPU time
+from the recording's length (at most 30 s of audio is analysed), so visitors who are not signed in to Hugging
+Face fit within their quota.
+
 ## The trainer
 
 The page embeds onchou, a Japanese pitch-accent and vowel-devoicing trainer
