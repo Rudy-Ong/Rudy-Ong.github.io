@@ -106,9 +106,9 @@ function mountReveals(): void {
   });
 }
 
-/** Hide the placeholder once the embedded Space has actually rendered. */
+/** Hide the placeholder once the embedded trainer has actually rendered. */
 function mountEmbed(): void {
-  const frame = document.querySelector<HTMLIFrameElement>('#hf-embed');
+  const frame = document.querySelector<HTMLIFrameElement>('#onchou-embed');
   const loading = document.querySelector<HTMLElement>('#embed-loading');
   if (!frame) return;
   frame.addEventListener('load', () => {
